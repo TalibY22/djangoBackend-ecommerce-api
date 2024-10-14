@@ -60,6 +60,29 @@ class cart_item(models.Model):
        product_id = models.ForeignKey(products, on_delete=models.CASCADE)
        quantity = models.IntegerField()
 
+class orders(models.Model):
+      customers = models.ForeignKey(customers, on_delete=models.CASCADE)
+      type = models.CharField(max_length=20)
+
+      total = models.IntegerField()
+
+
+class order_items(models.Model):
+      order_id = models.ForeignKey(orders, on_delete=models.CASCADE)
+      product_id = models.ForeignKey(products,on_delete=models.CASCADE)
+
+
+
+class payments(models.Model):
+      order_id = models.ForeignKey(orders, on_delete=models.CASCADE)
+      payment_method = models.CharField(max_length=256)
+      amount_paid = models.IntegerField()
+      date_of_payment = models.IntegerField()
+
+class customer_payments(models.Model):
+      customer_id = models.ForeignKey(customers, on_delete=models.CASCADE)
+      payment_id = models.ForeignKey(payments, on_delete=models.CASCADE)
+
 
 
 
