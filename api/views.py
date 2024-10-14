@@ -24,7 +24,7 @@ def login_api(request):
             token, created = Token.objects.get_or_create(user=user)
             customer = customer.objects.get(user=user)
             customer_Serializer = CustomersSerializer(customer)
-            return Response({'token': token.key})
+            return Response({'token': token.key,'customer_details':customer_Serializer.data})
         else:
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
     else:

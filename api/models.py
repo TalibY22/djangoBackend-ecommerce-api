@@ -12,7 +12,7 @@ class customers(models.Model):
      last_name = models.CharField(max_length=20)
      email = models.EmailField()
      phone_number = models.IntegerField()
-     address = models.CharField()
+     address = models.CharField(max_length=256)
      dob = models.DateField()
 
      #Create a user for the customers 
