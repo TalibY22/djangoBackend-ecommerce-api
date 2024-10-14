@@ -19,3 +19,14 @@ class ProductsSerializer(serializers.ModelSerializer):
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField()
+
+
+class RegisterSerializer(serializers.Serializer):
+     first_name  = serializers.CharField()
+     last_name  = serializers.CharField()
+     email = serializers.EmailField()
+     phone_number = serializers.IntegerField()
+     address = serializers.CharField()
+     dob = serializers.DateField()
+
+     

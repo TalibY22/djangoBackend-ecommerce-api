@@ -19,7 +19,7 @@ class customers(models.Model):
      def save(self, *args, **kwargs):
         if not self.user:
            
-            username = self.First_Name.lower()
+            username = self.first_name.lower()
             password = "123456789"  
 
             

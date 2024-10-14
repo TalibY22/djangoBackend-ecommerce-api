@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework import status
 from .models import customers
 from rest_framework.authtoken.models import Token
-from  .serializers import LoginSerializer,CustomersSerializer,ProductsSerializer
+from  .serializers import LoginSerializer,CustomersSerializer,ProductsSerializer,RegisterSerializer
 from django.contrib.auth import authenticate
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
@@ -29,4 +29,33 @@ def login_api(request):
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
     else:
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+@api_view(['POST'])
+def register_api(request):
+    serializer = RegisterSerializer(data=request.data)
+    if serializer.is_valid():
+        first_name = serializer.validated_data['first_name']
+        last_name = serializer.validated_data['last_name']
+        email = serializer.validated_data['email']
+        phone_number = serializer.validated_data['phone_number']
+        address = serializer.validated_data['address']
+        dob = serializer.validated_data['dob']
+
+        customer = customers(
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            phone_number=phone_number,
+            address=address,
+            dob=dob
+        )
+        
+        # Save the customer instance to the database
+        customer.save()
+
+        return Response({'message': 'Customer registered successfully'}, status=status.HTTP_201_CREATED)
+
+    else:
+          return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     

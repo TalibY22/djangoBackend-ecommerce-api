@@ -6,6 +6,7 @@ from .import views
 urlpatterns = [
    
      path('api/login',views.login_api),
+      path('api/register',views.register_api),
      #Path for applying for leave try it out in the post leave form
     
     
