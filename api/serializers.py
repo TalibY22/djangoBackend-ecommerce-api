@@ -30,3 +30,12 @@ class RegisterSerializer(serializers.Serializer):
      dob = serializers.DateField()
 
      
+class CartSerializer(serializers.Serializer):
+     customer_id = serializers.IntegerField()
+     total = serializers.IntegerField()
+
+class CartItemSerializer(serializers.Serializer):
+      cart_id = serializers.IntegerField()
+      product_id = serializers.IntegerField()
+      quantity = serializers.IntegerField()
+      

@@ -28,9 +28,15 @@ class customers(models.Model):
         
         super().save(*args, **kwargs)
 
+     def __str__(self):
+       return self.first_name
+
 
 class category(models.Model):
     category_type = models.CharField(max_length=20)
+
+    def __str__(self):
+       return self.category_type
 
 
 
@@ -43,6 +49,8 @@ class products(models.Model):
     SKU = models.IntegerField()
     
     category_type = models.ForeignKey(category, on_delete=models.CASCADE)
+    def __str__(self):
+       return self.name
 
 
 class wishlist(models.Model):
@@ -52,12 +60,13 @@ class wishlist(models.Model):
 
 class cart(models.Model):
       customer_id = models.ForeignKey(customers, on_delete=models.CASCADE)
-      total = models.IntegerField()
+      total = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
 
 
 class cart_item(models.Model):
        cart_id = models.ForeignKey(cart, on_delete=models.CASCADE)
        product_id = models.ForeignKey(products, on_delete=models.CASCADE)
+       price = models.IntegerField()
        quantity = models.IntegerField()
 
 class orders(models.Model):
