@@ -9,6 +9,7 @@ from .models import customers,products,cart,cart_item
 from rest_framework.authtoken.models import Token
 from  .serializers import LoginSerializer,CustomersSerializer,ProductsSerializer,RegisterSerializer,CartSerializer,CartItemSerializer
 from django.contrib.auth import authenticate
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 
@@ -68,13 +69,15 @@ def get_products(request):
 
 #Testing phase
 @api_view(['POST'])
+@csrf_exempt
+@authentication_classes([TokenAuthentication])
 
 def create_cart(request):
     print(f"Request User: {request.user}")  # Log the request user
     print(f"Auth Details: {request.headers.get('Authorization')}")
-    customer = request.user.customer    
+    customer = get_object_or_404(customers, user=request.user.id)    
     #get or create check if a cart has been created or note if it has been created return a response 
-    Cart, created = cart.objects.get_or_create(customer=customer)
+    Cart, created = cart.objects.get_or_create(customer_id=customer)
     
     if created:
         message = "A new cart has been created."
