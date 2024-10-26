@@ -1,141 +1,188 @@
-from django.shortcuts import render
-
-# Create your views here.
-from django.shortcuts import render,get_object_or_404
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework import status
-from .models import customers,products,cart,cart_item
-from rest_framework.authtoken.models import Token
-from  .serializers import LoginSerializer,CustomersSerializer,ProductsSerializer,RegisterSerializer,CartSerializer,CartItemSerializer
-from django.contrib.auth import authenticate
-from django.views.decorators.csrf import csrf_exempt
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.authentication import TokenAuthentication
+from serializers import UserSerializer,CartItemSerializer,CustomerSerializer,CategorySerializer,ProductSerializer,WishlistSerializer,CartSerializer,OrderSerializer
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+from .models import (customers, category, products, wishlist, cart, 
+                    cart_item, orders, order_items, payments, customer_payments)
+from django.shortcuts import get_object_or_404
 
-
-@api_view(['POST'])
-def login_api(request):
-    serializer = LoginSerializer(data=request.data)
-    if serializer.is_valid():
-        username = serializer.validated_data['username']
-        password = serializer.validated_data['password']
-        user = authenticate(username=username, password=password)
-        if user:
-            token, created = Token.objects.get_or_create(user=user)
-            customer = customers.objects.get(user=user)
-            customer_Serializer = CustomersSerializer(customer)
-            return Response({'token': token.key,'customer_details':customer_Serializer.data})
-        else:
-            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-    else:
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class CustomerViewSet(viewsets.ModelViewSet):
+    queryset = customers.objects.all()
+    serializer_class = CustomerSerializer
     
-@api_view(['POST'])
-def register_api(request):
-    serializer = RegisterSerializer(data=request.data)
-    if serializer.is_valid():
-        first_name = serializer.validated_data['first_name']
-        last_name = serializer.validated_data['last_name']
-        email = serializer.validated_data['email']
-        phone_number = serializer.validated_data['phone_number']
-        address = serializer.validated_data['address']
-        dob = serializer.validated_data['dob']
+    def get_permissions(self):
+        if self.action in ['create']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
+    
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            return customers.objects.all()
+        return customers.objects.filter(user=self.request.user)
 
-        customer = customers(
-            first_name=first_name,
-            last_name=last_name,
-            email=email,
-            phone_number=phone_number,
-            address=address,
-            dob=dob
+class CategoryViewSet(viewsets.ModelViewSet):
+    queryset = category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [IsAdminUser]
+
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = products.objects.all()
+    serializer_class = ProductSerializer
+    
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+        return [IsAdminUser()]
+    
+    @action(detail=False, methods=['GET'])
+    def by_category(self, request):
+        category_id = request.query_params.get('category_id')
+        products_list = products.objects.filter(category_type_id=category_id)
+        serializer = self.get_serializer(products_list, many=True)
+        return Response(serializer.data)
+
+class WishlistViewSet(viewsets.ModelViewSet):
+    serializer_class = WishlistSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return wishlist.objects.filter(customer_id__user=self.request.user)
+
+class CartViewSet(viewsets.ModelViewSet):
+    serializer_class = CartSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return cart.objects.filter(customer_id__user=self.request.user)
+    
+    def create(self, request):
+        """
+        Create a new cart if user doesn't have one
+        """
+        # Check if user already has a cart
+        customer_instance = get_object_or_404(customers, user=request.user)
+        existing_cart = cart.objects.filter(customer_id=customer_instance).first()
+        
+        if existing_cart:
+            return Response(
+                {"detail": "Cart already exists for this user"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create new cart
+        cart_instance = cart.objects.create(
+            customer_id=customer_instance,
+            total=0.00
+        )
+        serializer = self.get_serializer(cart_instance)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['POST'])
+    def add_item(self, request, pk=None):
+        """
+        Add item to cart with quantity
+        """
+        cart_instance = self.get_object()
+        product_id = request.data.get('product_id')
+        quantity = request.data.get('quantity', 1)
+        
+        # Validate product
+        product_instance = get_object_or_404(products, id=product_id)
+        
+        # Check if item already exists in cart
+        existing_item = cart_item.objects.filter(
+            cart_id=cart_instance,
+            product_id=product_instance
+        ).first()
+        
+        if existing_item:
+            # Update quantity if item exists
+            existing_item.quantity += quantity
+            existing_item.save()
+        else:
+            # Create new cart item
+            cart_item.objects.create(
+                cart_id=cart_instance,
+                product_id=product_instance,
+                price=product_instance.price,
+                quantity=quantity
+            )
+        
+        # Update cart total
+        self._update_cart_total(cart_instance)
+        
+        return Response({'status': 'Item added to cart'})
+    
+    @action(detail=True, methods=['POST'])
+    def remove_item(self, request, pk=None):
+        """
+        Remove item from cart
+        """
+        cart_instance = self.get_object()
+        product_id = request.data.get('product_id')
+        
+        cart_item.objects.filter(
+            cart_id=cart_instance,
+            product_id=product_id
+        ).delete()
+        
+        # Update cart total
+        self._update_cart_total(cart_instance)
+        
+        return Response({'status': 'Item removed from cart'})
+    
+    def _update_cart_total(self, cart_instance):
+        """
+        Update cart total based on items
+        """
+        cart_items = cart_item.objects.filter(cart_id=cart_instance)
+        total = sum(item.price * item.quantity for item in cart_items)
+        cart_instance.total = total
+        cart_instance.save()
+
+class OrderViewSet(viewsets.ModelViewSet):
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            return orders.objects.all()
+        return orders.objects.filter(customers__user=self.request.user)
+    
+    @action(detail=False, methods=['POST'])
+    def create_from_cart(self, request):
+        customer = get_object_or_404(customers, user=request.user)
+        cart_instance = get_object_or_404(cart, customer_id=customer)
+        
+        # Create order
+        order = orders.objects.create(
+            customers=customer,
+            type='online',
+            total=cart_instance.total
         )
         
-        # Save the customer instance to the database
-        customer.save()
-
-        return Response({'message': 'Customer registered successfully'}, status=status.HTTP_201_CREATED)
-
-    else:
-          return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-@api_view(['GET'])
-def get_products(request):
-    Products = products.objects.all()  # Fetch all products
-    serializer = ProductsSerializer(Products, many=True)
-
-    return Response({'products': serializer.data}, status=status.HTTP_201_CREATED)
-
-
-
-#Testing phase
-@api_view(['POST'])
-@csrf_exempt
-@authentication_classes([TokenAuthentication])
-
-def create_cart(request):
-    print(f"Request User: {request.user}")  # Log the request user
-    print(f"Auth Details: {request.headers.get('Authorization')}")
-    customer = get_object_or_404(customers, user=request.user.id)    
-    #get or create check if a cart has been created or note if it has been created return a response 
-    Cart, created = cart.objects.get_or_create(customer_id=customer)
-    
-    if created:
-        message = "A new cart has been created."
-    else:
-        message = "Existing cart retrieved."
-
-    serializer = CartSerializer(Cart)
-    return Response({
-        'message': message,
-        'cart': serializer.data
-    }, status=status.HTTP_200_OK)
-    
-
-
-@api_view(['POST'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
-def add_item_to_cart(request):
-    customer = request.user.customer
-    
-    Cart = cart.objects.get(customer=customer)
-    
-   
-    serializer = CartItemSerializer(data=request.data)
-    if serializer.is_valid():
-        product_id = serializer.validated_data['product_id']
-        quantity = serializer.validated_data['quantity']
+        # Create order items from cart items
+        cart_items = cart_item.objects.filter(cart_id=cart_instance)
+        for item in cart_items:
+            order_items.objects.create(
+                order_id=order,
+                product_id=item.product_id,
+            )
         
+        # Clear cart
+        cart_items.delete()
+        cart_instance.total = 0
+        cart_instance.save()
         
-        try:
-            Product = products.objects.get(id=product_id)
-        except products.DoesNotExist:
-            return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'status': 'Order created successfully'})
 
-        
-        cart_item, created = cart_item.objects.get_or_create(cart=Cart, product=Product)
-        
-        if created:
-            cart_item.quantity = quantity  
-        else:
-            cart_item.quantity += quantity  
-            
-        cart_item.price = Product.price  
-        cart_item.save()
-
-       
-        #cart.update_total()
-
-        return Response({
-            'message': 'Product added to cart',
-            'cart_item': CartItemSerializer(cart_item).data
-        }, status=status.HTTP_200_OK)
-    else:
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class PaymentViewSet(viewsets.ModelViewSet):
+    queryset = payments.objects.all()
+    serializer_class = PaymentSerializer
+    permission_classes = [IsAuthenticated]
     
-
-@api_view(['POST'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
-def get_cart_with_items(request):
-    pass
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            return payments.objects.all()
+        return payments.objects.filter(order_id__customers__user=self.request.user)
