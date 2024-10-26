@@ -275,8 +275,7 @@ class products(models.Model):
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
 ## ✍️ Authors
-
-* **Your Name** - *Initial work* - [YourUsername](https://github.com/yourusername)
+TalibY22(https://github.com/TalibY22)
 
 ## 🙏 Acknowledgments
 
