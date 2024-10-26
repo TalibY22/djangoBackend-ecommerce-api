@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from serializers import UserSerializer,CartItemSerializer,CustomerSerializer,CategorySerializer,ProductSerializer,WishlistSerializer,CartSerializer,OrderSerializer
+from .serializers import UserSerializer,CartItemSerializer,CustomerSerializer,CategorySerializer,ProductSerializer,WishlistSerializer,CartSerializer,OrderSerializer,PaymentSerializer
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from .models import (customers, category, products, wishlist, cart, 
                     cart_item, orders, order_items, payments, customer_payments)

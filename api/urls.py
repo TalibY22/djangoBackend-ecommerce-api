@@ -1,17 +1,16 @@
-from django.contrib import admin
-from django.urls import path
-from .import views
+from rest_framework.routers import DefaultRouter
+from django.urls import path, include
+from .views import CustomerViewSet,CartViewSet,ProductViewSet,CategoryViewSet,WishlistViewSet,OrderViewSet,PaymentViewSet 
 
+router = DefaultRouter()
+router.register(r'customers', CustomerViewSet)
+router.register(r'categories', CategoryViewSet)
+router.register(r'products', ProductViewSet)
+router.register(r'wishlist', WishlistViewSet, basename='wishlist')
+router.register(r'cart', CartViewSet, basename='cart')
+router.register(r'orders', OrderViewSet, basename='orders')
+router.register(r'payments', PaymentViewSet)
 
 urlpatterns = [
-   
-     path('api/login',views.login_api),
-     path('api/register',views.register_api),
-     path('api/products',views.get_products),
-     path('api/create_cart',views.create_cart),
-
-
-     #Path for applying for leave try it out in the post leave form
-    
-    
+    path('', include(router.urls)),
 ]
