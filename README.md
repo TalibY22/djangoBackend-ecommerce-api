@@ -277,8 +277,3 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 ## ✍️ Authors
 TalibY22(https://github.com/TalibY22)
 
-## 🙏 Acknowledgments
-
-* Django REST Framework documentation
-* Python community
-* All contributors
