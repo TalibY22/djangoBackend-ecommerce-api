@@ -1,5 +1,5 @@
 from .models import (customers, category, products, wishlist, cart, 
-                    cart_item, orders, order_items, payments, customer_payments)
+                    cart_item, orders, order_items, payments, customer_payments,Test)
 from rest_framework import serializers
 from django.contrib.auth.models import Group, User
 
@@ -20,6 +20,14 @@ class CustomerSerializer(serializers.ModelSerializer):
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = category
+        fields = '__all__'
+
+
+
+class TestSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Test
         fields = '__all__'
 
 class ProductSerializer(serializers.ModelSerializer):

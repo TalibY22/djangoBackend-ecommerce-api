@@ -1,11 +1,40 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action,api_view
+from logging import Logger
 from rest_framework.response import Response
-from .serializers import UserSerializer,CartItemSerializer,CustomerSerializer,CategorySerializer,ProductSerializer,WishlistSerializer,CartSerializer,OrderSerializer,PaymentSerializer
+from .serializers import UserSerializer,CartItemSerializer,CustomerSerializer,CategorySerializer,ProductSerializer,WishlistSerializer,CartSerializer,OrderSerializer,TestSerializer,PaymentSerializer
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from .models import (customers, category, products, wishlist, cart, 
-                    cart_item, orders, order_items, payments, customer_payments)
+                    cart_item, orders, order_items, payments, customer_payments,Test)
 from django.shortcuts import get_object_or_404
+
+from django.core.cache import cache 
+
+@api_view(['GET', 'POST'])
+def test_history(request):
+    cache_key = "test_history_data"  # Unique key for caching test data
+
+    if request.method == 'GET':
+        cached_data = cache.get(cache_key)  # Check if data is in Redis
+        if cached_data:
+            return Response({"status": "✅ Cached", "data": cached_data})
+
+        test_records = Test.objects.all()
+        serializer = TestSerializer(test_records, many=True)
+
+        cache.set(cache_key, serializer.data, timeout=60 * 5)  # Cache for 5 minutes
+        return Response({"status": "❌ Not Cached (Fetching)", "data": serializer.data})
+
+    elif request.method == 'POST':
+        serializer = TestSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            
+            # Clear cache so next GET request fetches fresh data
+            cache.delete(cache_key)  
+
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = customers.objects.all()
@@ -26,6 +55,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
     permission_classes = [IsAdminUser]
 
+
+
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = products.objects.all()
     serializer_class = ProductSerializer
@@ -39,7 +70,18 @@ class ProductViewSet(viewsets.ModelViewSet):
     def by_category(self, request):
         category_id = request.query_params.get('category_id')
         products_list = products.objects.filter(category_type_id=category_id)
+
+        cache_key = f"products_category_{category_id}"  
+        cached_data = cache.get(cache_key)
+
+        if cached_data:
+            Logger.info("returning cached data ")
+            return Response(cached_data)
+
+
         serializer = self.get_serializer(products_list, many=True)
+        print("cache missing ")
+        cache.set(cache_key, serializer.data, timeout=60 * 5)
         return Response(serializer.data)
 
 class WishlistViewSet(viewsets.ModelViewSet):

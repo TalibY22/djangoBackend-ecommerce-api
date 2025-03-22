@@ -94,6 +94,13 @@ class customer_payments(models.Model):
 
 
 
+class Test(models.Model):
+      Test = models.CharField(max_length=256)
+      Another = models.IntegerField()
+      One = models.IntegerField()
+
+
+
 
 
 
